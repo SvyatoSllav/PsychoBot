@@ -31,22 +31,42 @@
 # # run entrypoint.sh
 # ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 
-FROM python:3.10
+# !
+# FROM python:3.10
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# ENV PYTHONDONTWRITEBYTECODE 1
+# ENV PYTHONUNBUFFERED 1
+
+# WORKDIR /project/
+# # Install dependencies
+# COPY pyproject.toml /project/
+# RUN pip install --upgrade pip && \
+#     pip install poetry && \
+#     poetry config virtualenvs.create false && \
+#     poetry install --no-interaction --no-ansi
+
+# COPY . /project/
+
+# COPY ./entrypoint.sh /usr/src/project/entrypoint.sh
+
+# # run entrypoint.sh
+# ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+
+FROM python:3.10-slim-buster
 
 WORKDIR /project/
-# Install dependencies
-COPY pyproject.toml /project/
-RUN pip install --upgrade pip && \
-    pip install poetry && \
-    poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-ansi
+
+RUN pip install --no-cache-dir poetry
+
+COPY ./pyproject.toml ./poetry.lock /project/
+
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --no-dev --verbose
+RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
 
 COPY . /project/
 
-COPY ./entrypoint.sh /usr/src/app/entrypoint.sh
+COPY ./entrypoint.sh /usr/src/project/entrypoint.sh
 
 # run entrypoint.sh
-ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+ENTRYPOINT ["/usr/src/project/entrypoint.sh"]
