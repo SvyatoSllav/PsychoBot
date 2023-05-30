@@ -12,7 +12,6 @@ RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; els
 
 COPY . /project/
 
-COPY ./entrypoint.sh /usr/src/project/entrypoint.sh
-
-# run entrypoint.sh
-ENTRYPOINT ["/usr/src/project/entrypoint.sh"]
+EXPOSE 8000
+# Start the app
+CMD ["gunicorn", "core.wsgi:application", "--reload", "--bind", "0.0.0.0:8000", "--workers", "3"]

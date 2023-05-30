@@ -11,8 +11,6 @@ class TelegramWebhook(APIView):
         try:
             # TODO Добавить статус "Печатает"
             logger.info(request.data)
-            for key, value in request.data.items():
-                logger.info(key, value, "FDLS")
             user_id = request.data.get("message").get("from").get("id")
             message = request.data.get("message").get("text")
             TelegramWebhook._handle_message(user_id=user_id, message=message)
