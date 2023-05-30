@@ -1,5 +1,8 @@
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path
+
+from . import settings
 
 from telegram_bot.views import TelegramWebhook
 
@@ -12,3 +15,6 @@ urlpatterns = [
     path("tasks/", run_task, name="run_task"),
     path("", home, name="home"),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

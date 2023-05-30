@@ -5,6 +5,7 @@ services:
     build: ./project
     volumes:
       - ./project/:/project/
+      - ./project/static/:/static
     ports:
       - 8000:8000
     environment:
@@ -52,17 +53,23 @@ services:
       - web
       - redis
       - celery
+    networks:
+      - internal
 
   db:
     image: postgres
     volumes:
-      - ./data/db:/var/lib/postgresql/data
+      - dbdata:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     networks:
       - internal
+
+volumes:
+  dbdata:
+  static:
 
 networks:
   internal:
