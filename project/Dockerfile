@@ -1,23 +1,20 @@
-# pull official base image
-FROM python:3.11.1-alpine
+FROM python:3.10-slim-buster
 
-# set work directory
-WORKDIR /usr/src/app
+WORKDIR /project/
 
-# set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+RUN pip install --no-cache-dir poetry
 
-# install dependencies
-RUN pip install --upgrade pip
-COPY ./requirements.txt /usr/src/app/requirements.txt
-RUN pip install -r requirements.txt
+COPY ./pyproject.toml ./poetry.lock /project/
 
-# copy entrypoint.sh
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --no-dev --verbose
+RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
+
+COPY . /project/
+
 COPY ./entrypoint.sh /usr/src/app/entrypoint.sh
 
-# copy project
-COPY . /usr/src/app/
+EXPOSE 8000
 
-# run entrypoint.sh
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+# Start the app
