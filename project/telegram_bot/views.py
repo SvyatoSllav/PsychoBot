@@ -31,6 +31,11 @@ class TelegramWebhook(APIView):
                 return
             BOT.send_message(user_id, "Стартовое сообщение")
         elif message == "/help":
+            start_cmd_text = Commands.objects.filter(cmd="/help")
+            logger.info(f"{start_cmd_text}")
+            if start_cmd_text.exists():
+                BOT.send_message(user_id, start_cmd_text[0].text)
+                return
             BOT.send_message(user_id, "Хелповое сообщение")
         else:
             BOT.send_message(user_id, f"Ваше сообщение {message}")
