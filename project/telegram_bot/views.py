@@ -23,7 +23,11 @@ class TelegramWebhook(APIView):
 
     @classmethod
     def _handle_message(cls, user_id: int, message: str):
-        if message == "/start":
+        start_cmd_text = Commands.objects.filter(cmd=message)
+        if start_cmd_text.exists():
+            BOT.send_message(user_id, start_cmd_text[0].text)
+            return
+        elif message == "/start":
             start_cmd_text = Commands.objects.filter(cmd="/start")
             logger.info(f"{start_cmd_text}")
             if start_cmd_text.exists():
