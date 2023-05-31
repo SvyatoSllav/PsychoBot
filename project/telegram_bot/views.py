@@ -5,6 +5,8 @@ from loguru import logger
 
 from .loader import BOT
 
+from .models import Commands
+
 
 class TelegramWebhook(APIView):
     def post(self, request):
@@ -22,8 +24,13 @@ class TelegramWebhook(APIView):
     @classmethod
     def _handle_message(cls, user_id: int, message: str):
         if message == "/start":
+            start_cmd_text = Commands.objects.filter(cmd="/start")
+            logger.info(f"{start_cmd_text}")
+            if start_cmd_text.exists():
+                BOT.send_message(user_id, start_cmd_text[0].text)
+                return
             BOT.send_message(user_id, "Стартовое сообщение")
         elif message == "/help":
             BOT.send_message(user_id, "Хелповое сообщение")
         else:
-            BOT.send_message(user_id, message)
+            BOT.send_message(user_id, f"Ваше сообщение {message}")
