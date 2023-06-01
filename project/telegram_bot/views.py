@@ -18,10 +18,17 @@ class TelegramWebhook(APIView):
     def post(self, request):
         try:
             logger.info(request.data)
-            user_id = request.data.get("message").get("from").get("id")
-            message = request.data.get("message").get("text")
-            username = request.data.get("message").get("from").get("username")
-            location = request.data.get("message").get("location")
+
+            if request.data.get("callback_query"):
+                message = request.data.get("callback_query").get("data")
+                user_id = request.data.get("callback_query").get("from").get("id")
+                username = request.data.get("callback_query").get("from").get("username")
+                location = request.data.get("callback_query").get("location")
+            else:
+                user_id = request.data.get("message").get("from").get("id")
+                message = request.data.get("message").get("text")
+                username = request.data.get("message").get("from").get("username")
+                location = request.data.get("message").get("location")
             TelegramUser.objects.get_or_create(
                 user_id=user_id,
                 username=username
@@ -46,6 +53,8 @@ class TelegramWebhook(APIView):
             TelegramWebhook._process_start_cmd(user_id=user_id)
         elif message == "/help":
             TelegramWebhook._process_help_cmd(user_id=user_id)
+        elif message == "buy":
+            TelegramWebhook._process_payment_cmd(user_id=user_id)
         elif message:
             # TODO: Обработка ответов.
             # TODO: 1) Условие на то, что курс куплен
@@ -65,6 +74,10 @@ class TelegramWebhook(APIView):
             row_width=1,
             resize_keyboard=True
         )
+        inlinekeyboard = types.InlineKeyboardMarkup(
+            row_width=1
+        )
+        inlinekeyboard.add(types.InlineKeyboardButton("Оплатить", callback_data="buy"))
         button_geo = types.KeyboardButton(
             text="Отправить местоположение",
             request_location=True
@@ -80,11 +93,21 @@ class TelegramWebhook(APIView):
                 start_cmd_text[0].text,
                 reply_markup=keyboard
             )
+            BOT.send_message(
+                user_id,
+                start_cmd_text[0].text,
+                reply_markup=inlinekeyboard
+            )
             return
         BOT.send_message(
             user_id,
             "Стартовое сообщение",
-            reply_markup=keyboard,
+            reply_markup=keyboard
+        )
+        BOT.send_message(
+            user_id,
+            "Необходимо оплатить курс",
+            reply_markup=inlinekeyboard
         )
 
     @classmethod
@@ -97,6 +120,10 @@ class TelegramWebhook(APIView):
             BOT.send_message(user_id, start_cmd_text[0].text)
             return
         BOT.send_message(user_id, "Хелповое сообщение")
+
+    @classmethod
+    def _process_payment_cmd(cls, user_id):
+        logger.info("ОПЛАТА")
 
     @staticmethod
     def _save_user_timezone(user_id: int, location: dict[str, int]):
