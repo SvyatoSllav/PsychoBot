@@ -32,7 +32,7 @@ class TelegramWebhook(APIView):
             return JsonResponse({"success": request.data})
         except Exception as _exec:
             logger.error(f"{_exec}")
-            return JsonResponse({"Error": "Some error occurmessageed."})
+            return JsonResponse({"Error": "Some error occured."})
 
     @staticmethod
     def _handle_message(user_id: int, message: str):
@@ -60,6 +60,7 @@ class TelegramWebhook(APIView):
         """
         Обрабатывает команду /start.
         """
+        # TODO поменять условие, сначал проверять локацию если нет, добваить клавиатуру
         keyboard = types.ReplyKeyboardMarkup(
             row_width=1,
             resize_keyboard=True
