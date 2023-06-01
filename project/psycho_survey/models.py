@@ -148,7 +148,28 @@ class Messages(UUIDMixin, TimeStampedMixin):
         blank=False,
         verbose_name='Текст сообщения'
     )
+    msg_count = models.IntegerField(
+        default=0,
+    )
 
     class Meta:
         verbose_name = 'Сообщение'
         verbose_name_plural = 'Сообщения'
+
+
+class Review(UUIDMixin, TimeStampedMixin):
+    user = models.OneToOneField(
+        TelegramUser,
+        on_delete=models.CASCADE,
+        blank=False,
+        verbose_name="Автор отзыва",
+    )
+    text = models.TextField(
+        max_length=4000,
+        blank=False,
+        verbose_name='Текст отзыва'
+    )
+
+    class Meta:
+        verbose_name = 'Отзыв'
+        verbose_name_plural = 'Отзывы'
