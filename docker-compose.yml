@@ -3,7 +3,6 @@ version: '3.3'
 services:
   web:
     build: ./project
-    command: gunicorn core.wsgi:application --reload --bind 0.0.0.0:8000 --workers 3
     volumes:
       - ./project/:/project/
       - ./project/static/:/static
