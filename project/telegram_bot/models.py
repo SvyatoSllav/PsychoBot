@@ -29,6 +29,10 @@ class TelegramUser(UUIDMixin, TimeStampedMixin):
         blank=True,
         null=True
     )
+    timezone = models.CharField(
+        max_length=32,
+        blank=True,
+    )
 
     def __str__(self):
         return f"""
