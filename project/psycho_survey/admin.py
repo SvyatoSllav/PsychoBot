@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Task, Questionnaire, Messages
+from .models import Task, Questionnaire, Messages, Review
 
 
 @admin.register(Task)
@@ -27,7 +27,19 @@ class MessagesAdmin(admin.ModelAdmin):
         "task",
         "message_text",
     ]
+    exclude = ['msg_count', ]
     search_fields = [
         "user",
         "task",
+    ]
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = [
+        "user",
+        "text",
+    ]
+    search_fields = [
+        "user",
     ]
