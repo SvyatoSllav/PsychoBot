@@ -1,5 +1,5 @@
 from django.db import models
-from .mixins import UUIDMixin, TimeStampedMixin
+from .mixins.models_mixins import UUIDMixin, TimeStampedMixin
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 
