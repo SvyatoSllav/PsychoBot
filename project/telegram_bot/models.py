@@ -19,15 +19,13 @@ class TelegramUser(UUIDMixin, TimeStampedMixin):
         default=False,
         verbose_name="Купил курс"
     )
+    completed_course = models.BooleanField(
+        default=False,
+        verbose_name="Завершил курс"
+    )
     task_sent = models.BooleanField(
         default=False,
         verbose_name="Сдал задачу"
-    )
-    timezone = models.DateTimeField(
-        auto_now_add=False,
-        verbose_name="timezone",
-        blank=True,
-        null=True
     )
     timezone = models.CharField(
         max_length=32,
