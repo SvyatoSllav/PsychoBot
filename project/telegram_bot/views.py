@@ -7,7 +7,7 @@ from loguru import logger
 
 from telebot import types
 
-from psycho_survey.models import Task, Messages
+from psycho_survey.models import Task, Messages, Review
 
 from .loader import BOT
 from .models import Commands, TelegramUser
@@ -41,8 +41,7 @@ class TelegramWebhook(APIView):
         Обрабатывает текст сообщения и исполняет соответствующее поведение
         """
         BOT.send_chat_action(chat_id=user_id, action="typing")
-        # TODO Вернуть на проде
-        # time.sleep(5)
+        time.sleep(5)
         if message == "/start":
             TelegramWebhook._process_start_cmd(user_id=user_id)
         elif message == "/help":
@@ -116,12 +115,21 @@ class TelegramWebhook(APIView):
             # TODO Поменять ветвление на валидирующие функции из класса предка
             user = TelegramUser.objects.get(user_id=user_id)
             task = get_active_task(day_number=user.day_number)
+            review_exists = Review.objects.filter(user=user).exists()
             latest_msg_msg_count = 0
             if Messages.objects.filter(user=user).exists():
                 latest_msg_msg_count = Messages.objects.latest("created_at").msg_count
             # Если курс не куплен, то отрабатываем как старт
             if not user.bought_course:
                 TelegramWebhook._process_start_cmd(user_id=user_id)
+            if review_exists:
+                BOT.send_chat_action(chat_id=user_id, action="typing")
+                time.sleep(5)
+                BOT.send_message(
+                    chat_id=user_id,
+                    text="Вы уже оставили отзыв! Спасибо за прохождение курса",
+                )
+                return
             if not user.timezone:
                 # Если нет таймзоны, запрашиваем местоположение
                 BOT.send_chat_action(chat_id=user_id, action="typing")
@@ -136,21 +144,22 @@ class TelegramWebhook(APIView):
                 # Если сообщение уже отправлено
                 BOT.send_chat_action(chat_id=user_id, action="typing")
                 time.sleep(5)
+                if user.day_number == 10:
+                    Review.objects.create(
+                        user=user,
+                        text=message,
+                    )
+                    BOT.send_message(
+                        chat_id=user_id,
+                        text="Благодарим вас за отзыв"
+                    )
+                    return
                 BOT.send_message(
                     chat_id=user_id,
                     text="Благодарим вас, вы уже выполнили сегодняшнее задание"
                 )
                 return
-            if not task.is_answer_counted_task:
-                Messages.objects.create(
-                    user=user,
-                    task=task,
-                    message_text=message,
-                )
-                user.task_sent = True
-                user.save()
-                return user
-            if task.amount_of_message != latest_msg_msg_count:
+            if task.amount_of_message != latest_msg_msg_count and task.is_answer_counted_task:
                 incemented_latest_msg_count = latest_msg_msg_count + 1
                 return Messages.objects.create(
                     user=user,
@@ -158,13 +167,35 @@ class TelegramWebhook(APIView):
                     message_text=message,
                     msg_count=incemented_latest_msg_count,
                 )
+            elif task.amount_of_message == latest_msg_msg_count and task.is_answer_counted_task:
+                BOT.send_chat_action(chat_id=user_id, action="typing")
+                time.sleep(5)
+                BOT.send_message(
+                    chat_id=user_id,
+                    text="Спасибо я принял ваши ответы",
+                    reply_markup=get_location_btn()
+                )
             user.task_sent = True
             user.save()
             BOT.send_chat_action(chat_id=user_id, action="typing")
             time.sleep(5)
+
+            if user.day_number == 10 and not review_exists:
+                BOT.send_message(
+                    chat_id=user_id,
+                    text="Отправьте пожалуйста ваш отзыв"
+                )
+                return
+            Messages.objects.create(
+                user=user,
+                task=task,
+                message_text=message,
+            )
+            user.task_sent = True
+            user.save()
             BOT.send_message(
                 chat_id=user_id,
-                text="Благодарим вас, вы уже выполнили сегодняшнее задание"
+                text="Благодарим вас за ответ на задание"
             )
             return user
         except Exception as _exec:

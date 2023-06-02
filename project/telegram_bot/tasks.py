@@ -44,6 +44,12 @@ def send_daily_msg():
                     user.day_number = user.day_number + 1
                     user.save()
                     return user
+                BOT.send_chat_action(chat_id=user.user_id, action="typing")
+                time.sleep(5)
+                BOT.send_message(
+                    chat_id=user.user_id,
+                    text="К сожалению вы не прошли сегодняшнее задание - вы возвращаетесь к предыдущему дню",
+                )
                 user.day_number = user.day_number - 1
                 user.save()
     except Exception as _exec:
