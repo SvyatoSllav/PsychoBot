@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     "tasks",
     "telegram_bot",
     "psycho_survey",
+    "tinkoff",
+    "TinkoffApiService",
 ]
 
 MIDDLEWARE = [

@@ -13,6 +13,10 @@ from .loader import BOT
 
 from .models import Commands, TelegramUser
 
+from .utils import PaymentStatus
+
+
+from .Tinkoff import TinkoffSimplePayment
 
 class TelegramWebhook(APIView):
     def post(self, request):
@@ -20,15 +24,16 @@ class TelegramWebhook(APIView):
             logger.info(request.data)
 
             if request.data.get("callback_query"):
-                message = request.data.get("callback_query").get("data")
-                user_id = request.data.get("callback_query").get("from").get("id")
-                username = request.data.get("callback_query").get("from").get("username")
-                location = request.data.get("callback_query").get("location")
+                response_type = "callback_query"
+                message = request.data.get(response_type).get("data")
             else:
-                user_id = request.data.get("message").get("from").get("id")
-                message = request.data.get("message").get("text")
-                username = request.data.get("message").get("from").get("username")
-                location = request.data.get("message").get("location")
+                response_type = "message"
+                message = request.data.get(response_type).get("text")
+
+            user_id = request.data.get(response_type).get("from").get("id")
+            username = request.data.get(response_type).get("from").get("username")
+            location = request.data.get(response_type).get("location")
+
             TelegramUser.objects.get_or_create(
                 user_id=user_id,
                 username=username
@@ -123,7 +128,23 @@ class TelegramWebhook(APIView):
 
     @classmethod
     def _process_payment_cmd(cls, user_id):
-        logger.info("ОПЛАТА")
+        payment = TinkoffSimplePayment(terminal_id="1685039843752DEMO", password="jcw9vwrfgqx8fn0b")
+        user = TelegramUser.objects.get(
+            user_id=user_id,
+        )
+        try:
+            payment_result = payment.init(user.order_id, "100", sign_request=True, notificationURL="https://2100-5-16-122-1.ngrok-free.app/payhook/", data={"Phone": "+79999999999"})
+            payment_url = payment_result['PaymentURL']
+            BOT.send_message(user_id, f"Оплатите курс по этой ссылке: {payment_url}")
+            user.payment_status = PaymentStatus.NEW
+            logger.info(user)
+        except Exception as _exec:
+            logger.error(f"{_exec}")
+            return JsonResponse({"Error": "error during payment"})
+
+
+
+
 
     @staticmethod
     def _save_user_timezone(user_id: int, location: dict[str, int]):

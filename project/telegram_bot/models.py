@@ -2,6 +2,8 @@ from django.db import models
 from .mixins import UUIDMixin, TimeStampedMixin
 from django.core.validators import MaxValueValidator, MinValueValidator
 
+from .utils import PaymentStatus
+
 
 class TelegramUser(UUIDMixin, TimeStampedMixin):
     user_id = models.BigIntegerField(verbose_name='Юзер ID', unique=True)
@@ -18,6 +20,15 @@ class TelegramUser(UUIDMixin, TimeStampedMixin):
     bought_course = models.BooleanField(
         default=False,
         verbose_name="Купил курс"
+    )
+    order_id = models.CharField(
+        max_length=36,
+        unique=True
+    )
+    payment_status = models.CharField(
+        max_length=15,
+        choices=PaymentStatus.choices(),
+        default="NONE"
     )
     task_sent = models.BooleanField(
         default=False,

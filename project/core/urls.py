@@ -5,6 +5,7 @@ from django.urls import path
 from . import settings
 
 from telegram_bot.views import TelegramWebhook
+from tinkoff.views import TinkoffWebhook
 
 from tasks.views import get_status, run_task, home
 
@@ -12,6 +13,7 @@ urlpatterns = [
     path("home/", home, name="home"),
     path("admin/", admin.site.urls),
     path("webhook/", TelegramWebhook.as_view(), name="tg_webhook"),
+    path("payhook/", TinkoffWebhook.as_view(), name="pay_webhook"),
     path("tasks/<task_id>/", get_status, name="get_status"),
     path("tasks/", run_task, name="run_task"),
 ]
