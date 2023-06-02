@@ -24,6 +24,7 @@ services:
 
   celery:
     build: ./project
+    restart: on-failure
     command: celery --app=core worker --loglevel=info --logfile=logs/celery.log
     volumes:
       - ./project/:/project/
@@ -41,6 +42,7 @@ services:
 
   celery-beat:
     build: ./project
+    restart: on-failure
     command: celery -A core beat -l info
     volumes:
       - ./project/:/project/
@@ -55,11 +57,13 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: on-failure
     networks:
       - internal
 
   db:
     image: postgres
+    restart: on-failure
     volumes:
       - dbdata:/var/lib/postgresql/data
     environment:
@@ -71,6 +75,7 @@ services:
 
   dashboard:
     build: ./project
+    restart: on-failure
     command: celery flower -A core --port=5555 --broker=redis://redis:6379/0
     ports:
       - 5555:5555
