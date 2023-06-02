@@ -50,70 +50,70 @@ class Task(UUIDMixin, TimeStampedMixin):
 
 
 class Questionnaire(UUIDMixin, TimeStampedMixin):
-    first_task = models.OneToOneField(
+    first_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Первая задача",
         related_name="quest_first_task",
     )
-    second_task = models.OneToOneField(
+    second_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Вторая задача",
         related_name="quest_second_task",
     )
-    third_task = models.OneToOneField(
+    third_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Третья задача",
         related_name="quest_third_task",
     )
-    fourth_task = models.OneToOneField(
+    fourth_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Четвертая задача",
         related_name="quest_fourth_task",
     )
-    fifth_task = models.OneToOneField(
+    fifth_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Пятая задача",
         related_name="quest_fifth_task",
     )
-    sixth_task = models.OneToOneField(
+    sixth_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Шестая задача",
         related_name="quest_sixth_task",
     )
-    seventh_task = models.OneToOneField(
+    seventh_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Седьмая задача",
         related_name="quest_seventh_task",
     )
-    eighth_task = models.OneToOneField(
+    eighth_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Восьмая задача",
         related_name="quest_eighth_task",
     )
-    nineth_task = models.OneToOneField(
+    nineth_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
         verbose_name="Девятая задача",
         related_name="quest_nineth_task",
     )
-    tenth_task = models.OneToOneField(
+    tenth_task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         blank=False,
@@ -128,6 +128,15 @@ class Questionnaire(UUIDMixin, TimeStampedMixin):
     class Meta:
         verbose_name = 'Тест'
         verbose_name_plural = 'Тесты'
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=['is_active'],
+                name='unique_is_active',
+                condition=models.Q(is_active=True),
+                violation_error_message="Уже существует активный тест."
+            )
+        ]
 
 
 class Messages(UUIDMixin, TimeStampedMixin):
