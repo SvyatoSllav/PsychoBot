@@ -71,3 +71,8 @@ def check_time_in_timezone(timezone: str, hour: int, minute: int):
     logger.info(f"{local_hour}, {local_minute}")
 
     return local_hour == hour and local_minute == minute
+
+
+@shared_task
+def check_is_course_payed():
+    pass
