@@ -13,9 +13,12 @@ from .loader import BOT
 from .models import Commands, TelegramUser
 from .keyboards import get_location_btn
 from .utils import get_active_task
+from .mixins.mixins import ValidatorsMixin, MessageHandlers
+from .consts import messages_const
+from .consts import error_const
 
 
-class TelegramWebhook(APIView):
+class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
     def post(self, request):
         try:
             logger.info(request.data)
@@ -33,7 +36,7 @@ class TelegramWebhook(APIView):
             return JsonResponse({"success": request.data})
         except Exception as _exec:
             logger.error(f"{_exec}")
-            return JsonResponse({"Error": "Some error occured."})
+            return JsonResponse({"Error": error_const})
 
     @staticmethod
     def _handle_message(user_id: int, message: str):
@@ -47,7 +50,7 @@ class TelegramWebhook(APIView):
         elif message == "/help":
             TelegramWebhook._process_help_cmd(user_id=user_id)
         elif message:
-            return TelegramWebhook._proccess_undefined_message(
+            TelegramWebhook._proccess_undefined_message(
                 user_id=user_id, message=message
             )
 
@@ -79,7 +82,6 @@ class TelegramWebhook(APIView):
         """
         Обрабатывает команду /help
         """
-        logger.info(f"{Task.objects.filter(id=1)}")
         start_cmd_text = Commands.objects.filter(cmd="/help")
         if start_cmd_text.exists():
             BOT.send_message(user_id, start_cmd_text[0].text)
@@ -102,7 +104,7 @@ class TelegramWebhook(APIView):
         time.sleep(5)
         BOT.send_message(
             chat_id=user_id,
-            text="Благодарим за доверие",
+            text=messages_const.GRATITUDE_FOR_LOCATION,
             reply_markup=types.ReplyKeyboardRemove()
         )
 
@@ -115,19 +117,18 @@ class TelegramWebhook(APIView):
             # TODO Поменять ветвление на валидирующие функции из класса предка
             user = TelegramUser.objects.get(user_id=user_id)
             task = get_active_task(day_number=user.day_number)
-            review_exists = Review.objects.filter(user=user).exists()
             latest_msg_msg_count = 0
             if Messages.objects.filter(user=user).exists():
                 latest_msg_msg_count = Messages.objects.latest("created_at").msg_count
             # Если курс не куплен, то отрабатываем как старт
             if not user.bought_course:
                 TelegramWebhook._process_start_cmd(user_id=user_id)
-            if review_exists:
+            if TelegramWebhook._review_exists:
                 BOT.send_chat_action(chat_id=user_id, action="typing")
                 time.sleep(5)
                 BOT.send_message(
                     chat_id=user_id,
-                    text="Вы уже оставили отзыв! Спасибо за прохождение курса",
+                    text=messages_const.REVIEW_IS_EXISTS,
                 )
                 return
             if not user.timezone:
@@ -136,7 +137,7 @@ class TelegramWebhook(APIView):
                 time.sleep(5)
                 BOT.send_message(
                     chat_id=user_id,
-                    text="Для того, чтобы начать курс, отправьте ваше местоположение. (Нажмите на кнопку внизу клавиатуры)",
+                    text=messages_const.SEND_YOUR_LOCATION,
                     reply_markup=get_location_btn()
                 )
                 return
@@ -151,12 +152,12 @@ class TelegramWebhook(APIView):
                     )
                     BOT.send_message(
                         chat_id=user_id,
-                        text="Благодарим вас за отзыв"
+                        text=messages_const.GRATITUDE_FOR_REVIEW
                     )
                     return
                 BOT.send_message(
                     chat_id=user_id,
-                    text="Благодарим вас, вы уже выполнили сегодняшнее задание"
+                    text=messages_const.TASK_ALREADY_SENT
                 )
                 return
             if task.amount_of_message != latest_msg_msg_count and task.is_answer_counted_task:
@@ -172,7 +173,7 @@ class TelegramWebhook(APIView):
                 time.sleep(5)
                 BOT.send_message(
                     chat_id=user_id,
-                    text="Спасибо я принял ваши ответы",
+                    text=messages_const.MESSAGES_SAVED,
                     reply_markup=get_location_btn()
                 )
             user.task_sent = True
@@ -183,7 +184,7 @@ class TelegramWebhook(APIView):
             if user.day_number == 10 and not review_exists:
                 BOT.send_message(
                     chat_id=user_id,
-                    text="Отправьте пожалуйста ваш отзыв"
+                    text=messages_const.SENT_REVIEW
                 )
                 return
             Messages.objects.create(
@@ -195,9 +196,9 @@ class TelegramWebhook(APIView):
             user.save()
             BOT.send_message(
                 chat_id=user_id,
-                text="Благодарим вас за ответ на задание"
+                text=messages_const.GRATITUDE_FOR_TASK_ANSWER
             )
             return user
         except Exception as _exec:
             logger.error(f"{_exec}")
-            return JsonResponse({"Error": "Some error occured."})
+            return JsonResponse({"Error": error_const})
