@@ -1,6 +1,4 @@
 import time
-import pytz
-from datetime import datetime
 from timezonefinder import TimezoneFinder
 from django.http import JsonResponse
 
@@ -9,9 +7,12 @@ from loguru import logger
 
 from telebot import types
 
-from .loader import BOT
+from psycho_survey.models import Task, Messages
 
+from .loader import BOT
 from .models import Commands, TelegramUser
+from .keyboards import get_location_btn
+from .utils import get_active_task
 
 
 class TelegramWebhook(APIView):
@@ -47,32 +48,19 @@ class TelegramWebhook(APIView):
         elif message == "/help":
             TelegramWebhook._process_help_cmd(user_id=user_id)
         elif message:
-            # TODO: Обработка ответов.
-            # TODO: 1) Условие на то, что курс куплен
-            # TODO: 2) Создание объекта сообщения с привязкой к задаче и юзеру
-            # TODO: 3) Если сообщение ответ уже создано, не сохранять его вновь
-            # TODO: 4) Если сообщений ожидается несколько, считать их в Message
-            # TODO: 5) Проверять, достаточно ли сообщений сохранено в таске
-            BOT.send_message(user_id, f"Ваше сообщение {message}")
+            return TelegramWebhook._proccess_undefined_message(
+                user_id=user_id, message=message
+            )
 
     @classmethod
     def _process_start_cmd(cls, user_id: int):
         """
         Обрабатывает команду /start.
         """
-        # TODO поменять условие, сначал проверять локацию если нет, добваить клавиатуру
-        keyboard = types.ReplyKeyboardMarkup(
-            row_width=1,
-            resize_keyboard=True
-        )
-        button_geo = types.KeyboardButton(
-            text="Отправить местоположение",
-            request_location=True
-        )
-        keyboard.add(button_geo)
         user = TelegramUser.objects.get(user_id=user_id)
-        if user.timezone:
-            keyboard = types.ReplyKeyboardRemove()
+        keyboard = types.ReplyKeyboardRemove()
+        if not user.timezone:
+            keyboard = get_location_btn()
         start_cmd_text = Commands.objects.filter(cmd="/start")
         if start_cmd_text.exists():
             BOT.send_message(
@@ -92,6 +80,7 @@ class TelegramWebhook(APIView):
         """
         Обрабатывает команду /help
         """
+        logger.info(f"{Task.objects.filter(id=1)}")
         start_cmd_text = Commands.objects.filter(cmd="/help")
         if start_cmd_text.exists():
             BOT.send_message(user_id, start_cmd_text[0].text)
@@ -111,12 +100,73 @@ class TelegramWebhook(APIView):
         user.timezone = timezone
         user.save()
         BOT.send_chat_action(chat_id=user_id, action="typing")
-        # TODO Вернуть на проде
-        # time.sleep(5)
+        time.sleep(5)
         BOT.send_message(
             chat_id=user_id,
             text="Благодарим за доверие",
             reply_markup=types.ReplyKeyboardRemove()
         )
-        # TODO Для селери
-        # timenow = datetime.now(tz)
+
+    @classmethod
+    def _proccess_undefined_message(cls, user_id: int, message: str):
+        """
+        Обрабатывает неопределенное сообщение.
+        """
+        try:
+            # TODO Поменять ветвление на валидирующие функции из класса предка
+            user = TelegramUser.objects.get(user_id=user_id)
+            task = get_active_task(day_number=user.day_number)
+            latest_msg_msg_count = 0
+            if Messages.objects.filter(user=user).exists():
+                latest_msg_msg_count = Messages.objects.latest("created_at").msg_count
+            # Если курс не куплен, то отрабатываем как старт
+            if not user.bought_course:
+                TelegramWebhook._process_start_cmd(user_id=user_id)
+            if not user.timezone:
+                # Если нет таймзоны, запрашиваем местоположение
+                BOT.send_chat_action(chat_id=user_id, action="typing")
+                time.sleep(5)
+                BOT.send_message(
+                    chat_id=user_id,
+                    text="Для того, чтобы начать курс, отправьте ваше местоположение. (Нажмите на кнопку внизу клавиатуры)",
+                    reply_markup=get_location_btn()
+                )
+                return
+            if user.task_sent:
+                # Если сообщение уже отправлено
+                BOT.send_chat_action(chat_id=user_id, action="typing")
+                time.sleep(5)
+                BOT.send_message(
+                    chat_id=user_id,
+                    text="Благодарим вас, вы уже выполнили сегодняшнее задание"
+                )
+                return
+            if not task.is_answer_counted_task:
+                Messages.objects.create(
+                    user=user,
+                    task=task,
+                    message_text=message,
+                )
+                user.task_sent = True
+                user.save()
+                return user
+            if task.amount_of_message != latest_msg_msg_count:
+                incemented_latest_msg_count = latest_msg_msg_count + 1
+                return Messages.objects.create(
+                    user=user,
+                    task=task,
+                    message_text=message,
+                    msg_count=incemented_latest_msg_count,
+                )
+            user.task_sent = True
+            user.save()
+            BOT.send_chat_action(chat_id=user_id, action="typing")
+            time.sleep(5)
+            BOT.send_message(
+                chat_id=user_id,
+                text="Благодарим вас, вы уже выполнили сегодняшнее задание"
+            )
+            return user
+        except Exception as _exec:
+            logger.error(f"{_exec}")
+            return JsonResponse({"Error": "Some error occured."})
