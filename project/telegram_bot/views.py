@@ -1,4 +1,6 @@
 import time
+import uuid
+
 import pytz
 from datetime import datetime
 from timezonefinder import TimezoneFinder
@@ -13,10 +15,8 @@ from .loader import BOT
 
 from .models import Commands, TelegramUser
 
-from .utils import PaymentStatus
-
-
 from .Tinkoff import TinkoffSimplePayment
+
 
 class TelegramWebhook(APIView):
     def post(self, request):
@@ -132,12 +132,12 @@ class TelegramWebhook(APIView):
         user = TelegramUser.objects.get(
             user_id=user_id,
         )
+        logger.info(user.id)
         try:
-            payment_result = payment.init(user.order_id, "100", sign_request=True, notificationURL="https://2100-5-16-122-1.ngrok-free.app/payhook/", data={"Phone": "+79999999999"})
+            # order_id = str(uuid.uuid4())
+            payment_result = payment.init(str(user.id), "100", sign_request=True, notificationURL="https://049a-5-16-122-1.ngrok-free.app/payhook/", data={"Phone": "+79999999999"})
             payment_url = payment_result['PaymentURL']
             BOT.send_message(user_id, f"Оплатите курс по этой ссылке: {payment_url}")
-            user.payment_status = PaymentStatus.NEW
-            logger.info(user)
         except Exception as _exec:
             logger.error(f"{_exec}")
             return JsonResponse({"Error": "error during payment"})
