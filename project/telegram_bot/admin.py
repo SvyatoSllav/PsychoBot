@@ -12,6 +12,7 @@ class TelegramUserAdmin(admin.ModelAdmin):
         "task_sent",
         "timezone",
     )
+    exclude = ["completed_course", ]
 
 
 @admin.register(Commands)
