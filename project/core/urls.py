@@ -5,11 +5,13 @@ from django.urls import path
 from . import settings
 
 from telegram_bot.views import TelegramWebhook
+from tinkoff.views import TinkoffWebhook
 
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("webhook/", TelegramWebhook.as_view(), name="tg_webhook"),
+    path("payhook/", TinkoffWebhook.as_view(), name="pay_webhook"),
 ]
 
 if settings.DEBUG:

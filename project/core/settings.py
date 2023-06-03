@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "telegram_bot",
     "psycho_survey",
+    "tinkoff",
 ]
 
 MIDDLEWARE = [

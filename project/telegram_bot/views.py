@@ -1,4 +1,8 @@
 import time
+import uuid
+
+import pytz
+from datetime import datetime
 from timezonefinder import TimezoneFinder
 from django.http import JsonResponse
 
@@ -17,15 +21,23 @@ from .mixins.mixins import ValidatorsMixin, MessageHandlers
 from .consts import messages_const
 from .consts import error_const
 
+from .Tinkoff import TinkoffSimplePayment
+
 
 class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
     def post(self, request):
         try:
             logger.info(request.data)
-            user_id = request.data.get("message").get("from").get("id")
-            message = request.data.get("message").get("text")
-            username = request.data.get("message").get("from").get("username")
-            location = request.data.get("message").get("location")
+            if request.data.get("callback_query"):
+                response_type = "callback_query"
+                message = request.data.get(response_type).get("data")
+            else:
+                response_type = "message"
+                message = request.data.get(response_type).get("text")
+
+            user_id = request.data.get(response_type).get("from").get("id")
+            username = request.data.get(response_type).get("from").get("username")
+            location = request.data.get(response_type).get("location")
             contact = request.data.get("message").get("contact")
             TelegramUser.objects.get_or_create(
                 user_id=user_id,
@@ -58,6 +70,8 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             TelegramWebhook._process_start_cmd(user_id=user_id)
         elif message == "/help":
             TelegramWebhook._process_help_cmd(user_id=user_id)
+        elif message == "buy":
+            TelegramWebhook._process_payment_cmd(user_id=user_id)
         elif message:
             TelegramWebhook._proccess_undefined_message(
                 user_id=user_id, message=message
@@ -70,43 +84,44 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         """
         # TODO: Зарпрашивать локацию и номер телефона черзе TelegramWebhook._ask_for_location
         # TODO: Вынести в миксин по обработке стартовой команды
+        # TODO: Вынести клавиатуру по покупке
         user = TelegramWebhook._get_object_or_none(
             TelegramUser,
             user_id=user_id
         )
-        keyboard = get_loc_and_phone_keyboard(user=user)
-        contact_saved = user.timezone and user.phone
-        if contact_saved:
-            keyboard = types.ReplyKeyboardRemove()
-        start_cmd_text = Commands.objects.filter(cmd="/start")
-        if start_cmd_text.exists():
-            BOT.send_message(
-                user_id,
-                start_cmd_text[0].text,
-                reply_markup=keyboard
+        inlinekeyboard = types.InlineKeyboardMarkup(
+            row_width=1
+        )
+        inlinekeyboard.add(
+            types.InlineKeyboardButton(
+                "Оплатить", callback_data="buy"
             )
-            if not contact_saved:
-                TelegramWebhook._ask_for_location(user_id=user.user_id)
-            else:
-                BOT.send_message(
-                    user_id,
-                    text=messages_const.COURSE_STARTED,
-                    reply_markup=keyboard,
-                )
-            return
+        )
+        loc_and_phone_keyboard = get_loc_and_phone_keyboard(user=user)
+        contact_saved = user.timezone and user.phone
+        start_cmd_text = TelegramWebhook._get_object_or_none(
+            Commands,
+            cmd="/start"
+        )
+        message_text = messages_const.COURSE_STARTED
+        if start_cmd_text.exists():
+            message_text = start_cmd_text[0].text
+        if not user.bought_course:
+            return BOT.send_message(
+                user_id,
+                text=messages_const.COURSE_IS_NOT_BOUGHT,
+                reply_markup=inlinekeyboard
+            )
+        if not contact_saved:
+            return TelegramWebhook._ask_for_location(
+                user_id=user.user_id,
+                keyboard=loc_and_phone_keyboard
+            )
         BOT.send_message(
             user_id,
-            "Стартовое сообщение",
-            reply_markup=keyboard,
+            text=message_text,
+            reply_markup=types.ReplyKeyboardRemove(),
         )
-        if not contact_saved:
-            TelegramWebhook._ask_for_location(user_id=user.user_id)
-        else:
-            BOT.send_message(
-                user_id,
-                text=messages_const.COURSE_STARTED,
-                reply_markup=keyboard,
-            )
 
     @classmethod
     def _process_help_cmd(cls, user_id):
@@ -122,6 +137,28 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             BOT.send_message(user_id, start_cmd_text.text)
             return
         BOT.send_message(user_id, "Хелповое сообщение")
+
+    @classmethod
+    def _process_payment_cmd(cls, user_id):
+        """
+        Выдает ссылку на платеж
+        """
+        payment = TinkoffSimplePayment(terminal_id="1685039843752DEMO", password="jcw9vwrfgqx8fn0b")
+        user = TelegramUser.objects.get(
+            user_id=user_id,
+        )
+
+        try:
+            order_id = str(uuid.uuid4())
+            # str(user.id)
+            payment_result = payment.init(order_id, "100", sign_request=True,
+                                          notificationURL="https://8082-193-242-207-246.ngrok-free.app/payhook/",
+                                          data={"Phone": "+79999999999"})
+            payment_url = payment_result['PaymentURL']
+            BOT.send_message(user_id, f"Оплатите курс по этой ссылке: {payment_url}")
+        except Exception as _exec:
+            logger.error(f"{_exec}")
+            return JsonResponse({"Error": "error during payment"})
 
     @classmethod
     def _proccess_undefined_message(cls, user_id: int, message: str):
@@ -174,6 +211,7 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
                     message=message,
                     task_msg_count=task_msg_count
                 )
+            # TODO Фикс нейминга, мы не сохраняем последнее сообщение, а отрабатываем сценарий если сообщения закончились
             elif is_finall_msg_of_task:
                 TelegramWebhook._save_finall_msg(user_id=user_id)
             user.task_sent = True
@@ -188,6 +226,32 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         except Exception as _exec:
             logger.error(f"{_exec}")
             return JsonResponse({"Error": error_const.UNEXPECTED_ERROR_MSG})
+
+    @staticmethod
+    def confirmed_payment(userid: str):
+        """
+        Посылает пользователю сообщение, что оплата прошла успешно и меняет статус в БД
+        """
+        user = TelegramUser.objects.get(id=userid)
+        user.bought_course = True
+        user.save()
+
+        BOT.send_message(chat_id=user.user_id, text=f"Оплата прошла успешно")
+
+
+    @staticmethod
+    def rejected_payment(userid: str):
+        """
+        Посылает пользователю сообщение в случае непрошедшей оплаты и отправляет новую ссылку на повторную оплату
+        """
+        user = TelegramUser.objects.get(id=userid)
+        payment = TinkoffSimplePayment(terminal_id="1685039843752DEMO", password="jcw9vwrfgqx8fn0b")
+        payment_result = payment.init(userid, "100", sign_request=True,
+                                      notificationURL="https://8082-193-242-207-246.ngrok-free.app/payhook/",
+                                      data={"Phone": "+79999999999"})
+        payment_url = payment_result['PaymentURL']
+        BOT.send_message(chat_id=user.user_id, text=f"Ошибка при оплате. Повторите попытку\n{payment_url}")
+
 
     # TODO Вынести в миксины
     @staticmethod
@@ -226,4 +290,3 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             text=messages_const.GRATITUDE_FOR_LOCATION_OR_PHONE,
             reply_markup=types.ReplyKeyboardRemove()
         )
-
