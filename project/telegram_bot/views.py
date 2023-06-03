@@ -122,6 +122,7 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         """
         Генерирует и возвращает ссылку на форму оплаты.
         """
+        # TODO Вынести всё в енвы
         try:
             payment = TinkoffSimplePayment(terminal_id="1685039843752DEMO", password="jcw9vwrfgqx8fn0b")
             user = TelegramWebhook._get_object_or_none(
