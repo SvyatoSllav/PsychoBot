@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.db.models import Count, Q
 
 from .models import TelegramUser, Commands
 
@@ -9,8 +8,10 @@ class TelegramUserAdmin(admin.ModelAdmin):
     list_display = (
         "user_id",
         "username",
+        "phone",
         "day_number",
         "bought_course",
+        "completed_course",
         "task_sent",
         "timezone",
         "users_amount",

@@ -12,17 +12,15 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 
 import os
 from pathlib import Path
-# import environ
+import environ
 from celery.schedules import crontab
 
 from loguru import logger
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-# env = environ.Env()
-logger.info(BASE_DIR / ".env")
-# env.read_env(env.str('ENV_PATH', BASE_DIR / ".env"))
-
+BASE_DIR = Path(__file__).resolve().parent.parent
+env = environ.Env()
+env.read_env(env.str('ENV_PATH', BASE_DIR / ".env"))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
@@ -150,5 +148,4 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/1"),
     },
 }
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-logger.info(BOT_TOKEN)
+BOT_TOKEN = env("BOT_TOKEN")

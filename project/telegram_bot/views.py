@@ -7,11 +7,11 @@ from loguru import logger
 
 from telebot import types
 
-from psycho_survey.models import Task, Messages, Review
+from psycho_survey.models import Review
 
 from .loader import BOT
 from .models import Commands, TelegramUser
-from .keyboards import get_location_btn
+from .keyboards import get_loc_and_phone_keyboard
 from .utils import get_active_task
 from .mixins.mixins import ValidatorsMixin, MessageHandlers
 from .consts import messages_const
@@ -26,17 +26,26 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             message = request.data.get("message").get("text")
             username = request.data.get("message").get("from").get("username")
             location = request.data.get("message").get("location")
+            contact = request.data.get("message").get("contact")
             TelegramUser.objects.get_or_create(
                 user_id=user_id,
                 username=username
             )
             if location:
-                self._save_user_timezone(user_id=user_id, location=location)
+                return self._save_user_timezone(
+                    user_id=user_id,
+                    location=location
+                )
+            if contact:
+                return self._save_user_phone(
+                    user_id=user_id,
+                    phone=contact.get("phone_number")
+                )
             self._handle_message(user_id=user_id, message=message)
             return JsonResponse({"success": request.data})
         except Exception as _exec:
             logger.error(f"{_exec}")
-            return JsonResponse({"Error": error_const})
+            return JsonResponse({"Error": error_const.UNEXPECTED_ERROR_MSG})
 
     @staticmethod
     def _handle_message(user_id: int, message: str):
@@ -59,10 +68,16 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         """
         Обрабатывает команду /start.
         """
-        user = TelegramUser.objects.get(user_id=user_id)
-        keyboard = types.ReplyKeyboardRemove()
-        if not user.timezone:
-            keyboard = get_location_btn()
+        # TODO: Зарпрашивать локацию и номер телефона черзе TelegramWebhook._ask_for_location
+        # TODO: Вынести в миксин по обработке стартовой команды
+        user = TelegramWebhook._get_object_or_none(
+            TelegramUser,
+            user_id=user_id
+        )
+        keyboard = get_loc_and_phone_keyboard(user=user)
+        contact_saved = user.timezone and user.phone
+        if contact_saved:
+            keyboard = types.ReplyKeyboardRemove()
         start_cmd_text = Commands.objects.filter(cmd="/start")
         if start_cmd_text.exists():
             BOT.send_message(
@@ -70,24 +85,111 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
                 start_cmd_text[0].text,
                 reply_markup=keyboard
             )
+            if not contact_saved:
+                TelegramWebhook._ask_for_location(user_id=user.user_id)
+            else:
+                BOT.send_message(
+                    user_id,
+                    text=messages_const.COURSE_STARTED,
+                    reply_markup=keyboard,
+                )
             return
         BOT.send_message(
             user_id,
             "Стартовое сообщение",
             reply_markup=keyboard,
         )
+        if not contact_saved:
+            TelegramWebhook._ask_for_location(user_id=user.user_id)
+        else:
+            BOT.send_message(
+                user_id,
+                text=messages_const.COURSE_STARTED,
+                reply_markup=keyboard,
+            )
 
     @classmethod
     def _process_help_cmd(cls, user_id):
         """
         Обрабатывает команду /help
         """
-        start_cmd_text = Commands.objects.filter(cmd="/help")
-        if start_cmd_text.exists():
-            BOT.send_message(user_id, start_cmd_text[0].text)
+        # TODO Вынести в миксины
+        start_cmd_text = TelegramWebhook._get_object_or_none(
+            Commands,
+            cmd="/help"
+        )
+        if start_cmd_text:
+            BOT.send_message(user_id, start_cmd_text.text)
             return
         BOT.send_message(user_id, "Хелповое сообщение")
 
+    @classmethod
+    def _proccess_undefined_message(cls, user_id: int, message: str):
+        """
+        Обрабатывает неопределенное сообщение.
+        """
+        try:
+            # TODO Поменять ветвление на валидирующие функции из класса предка
+            user = TelegramUser.objects.get(user_id=user_id)
+            task = get_active_task(day_number=user.day_number)
+            review_exists = TelegramWebhook._get_object_or_none(
+                Review,
+                user=user
+            )
+            task_msg_count = TelegramWebhook._get_latest_message_or_zero(
+                user=user
+            )
+            # Если курс не куплен, то отрабатываем как старт
+            if not user.bought_course:
+                return TelegramWebhook._process_start_cmd(user_id=user_id)
+            # Сценарий если отзыв существует
+            if review_exists:
+                return TelegramWebhook._handle_review_exists_scenario(
+                    user_id=user_id
+                )
+            # Если нет таймзоны, запрашиваем местоположение
+            if not user.timezone or not user.phone:
+                return TelegramWebhook._ask_for_location_and_phone(
+                    user_id=user_id
+                )
+            if user.task_sent:
+                # Если ответ на сообщение отправлен
+                return TelegramWebhook._task_completed_scenario(
+                    user=user,
+                    message=message
+                )
+            # Если таск с подсчетом сообщений и сообщение всё еще ожидается
+            waiting_for_msgs = TelegramWebhook._is_waiting_for_msgs(
+                task=task,
+                task_msg_count=task_msg_count
+            )
+            is_finall_msg_of_task = TelegramWebhook._is_task_finall_msg(
+                task=task,
+                task_msg_count=task_msg_count
+            )
+            if waiting_for_msgs:
+                return TelegramWebhook._wait_for_msgs(
+                    user=user,
+                    task=task,
+                    message=message,
+                    task_msg_count=task_msg_count
+                )
+            elif is_finall_msg_of_task:
+                TelegramWebhook._save_finall_msg(user_id=user_id)
+            user.task_sent = True
+            user.save()
+            if user.day_number == 10 and not review_exists:
+                return TelegramWebhook._save_review(user=user, message=message)
+            TelegramWebhook._handle_task_message(
+                user=user,
+                task=task,
+                message=message
+                )
+        except Exception as _exec:
+            logger.error(f"{_exec}")
+            return JsonResponse({"Error": error_const.UNEXPECTED_ERROR_MSG})
+
+    # TODO Вынести в миксины
     @staticmethod
     def _save_user_timezone(user_id: int, location: dict[str, int]):
         """
@@ -104,101 +206,24 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         time.sleep(5)
         BOT.send_message(
             chat_id=user_id,
-            text=messages_const.GRATITUDE_FOR_LOCATION,
+            text=messages_const.GRATITUDE_FOR_LOCATION_OR_PHONE,
             reply_markup=types.ReplyKeyboardRemove()
         )
 
-    @classmethod
-    def _proccess_undefined_message(cls, user_id: int, message: str):
+    # TODO Вынести в миксины
+    @staticmethod
+    def _save_user_phone(user_id: int, phone: str):
         """
-        Обрабатывает неопределенное сообщение.
+        Обновляет телефон пользователя.
         """
-        try:
-            # TODO Поменять ветвление на валидирующие функции из класса предка
-            user = TelegramUser.objects.get(user_id=user_id)
-            task = get_active_task(day_number=user.day_number)
-            latest_msg_msg_count = 0
-            if Messages.objects.filter(user=user).exists():
-                latest_msg_msg_count = Messages.objects.latest("created_at").msg_count
-            # Если курс не куплен, то отрабатываем как старт
-            if not user.bought_course:
-                TelegramWebhook._process_start_cmd(user_id=user_id)
-            if TelegramWebhook._review_exists:
-                BOT.send_chat_action(chat_id=user_id, action="typing")
-                time.sleep(5)
-                BOT.send_message(
-                    chat_id=user_id,
-                    text=messages_const.REVIEW_IS_EXISTS,
-                )
-                return
-            if not user.timezone:
-                # Если нет таймзоны, запрашиваем местоположение
-                BOT.send_chat_action(chat_id=user_id, action="typing")
-                time.sleep(5)
-                BOT.send_message(
-                    chat_id=user_id,
-                    text=messages_const.SEND_YOUR_LOCATION,
-                    reply_markup=get_location_btn()
-                )
-                return
-            if user.task_sent:
-                # Если сообщение уже отправлено
-                BOT.send_chat_action(chat_id=user_id, action="typing")
-                time.sleep(5)
-                if user.day_number == 10:
-                    Review.objects.create(
-                        user=user,
-                        text=message,
-                    )
-                    BOT.send_message(
-                        chat_id=user_id,
-                        text=messages_const.GRATITUDE_FOR_REVIEW
-                    )
-                    return
-                BOT.send_message(
-                    chat_id=user_id,
-                    text=messages_const.TASK_ALREADY_SENT
-                )
-                return
-            if task.amount_of_message != latest_msg_msg_count and task.is_answer_counted_task:
-                incemented_latest_msg_count = latest_msg_msg_count + 1
-                return Messages.objects.create(
-                    user=user,
-                    task=task,
-                    message_text=message,
-                    msg_count=incemented_latest_msg_count,
-                )
-            elif task.amount_of_message == latest_msg_msg_count and task.is_answer_counted_task:
-                BOT.send_chat_action(chat_id=user_id, action="typing")
-                time.sleep(5)
-                BOT.send_message(
-                    chat_id=user_id,
-                    text=messages_const.MESSAGES_SAVED,
-                    reply_markup=get_location_btn()
-                )
-            user.task_sent = True
-            user.save()
-            BOT.send_chat_action(chat_id=user_id, action="typing")
-            time.sleep(5)
+        user = TelegramUser.objects.get(user_id=user_id)
+        user.phone = phone
+        user.save()
+        BOT.send_chat_action(chat_id=user_id, action="typing")
+        time.sleep(5)
+        BOT.send_message(
+            chat_id=user_id,
+            text=messages_const.GRATITUDE_FOR_LOCATION_OR_PHONE,
+            reply_markup=types.ReplyKeyboardRemove()
+        )
 
-            if user.day_number == 10 and not review_exists:
-                BOT.send_message(
-                    chat_id=user_id,
-                    text=messages_const.SENT_REVIEW
-                )
-                return
-            Messages.objects.create(
-                user=user,
-                task=task,
-                message_text=message,
-            )
-            user.task_sent = True
-            user.save()
-            BOT.send_message(
-                chat_id=user_id,
-                text=messages_const.GRATITUDE_FOR_TASK_ANSWER
-            )
-            return user
-        except Exception as _exec:
-            logger.error(f"{_exec}")
-            return JsonResponse({"Error": error_const})

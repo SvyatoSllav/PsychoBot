@@ -5,6 +5,11 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 
 class TelegramUser(UUIDMixin, TimeStampedMixin):
     user_id = models.BigIntegerField(verbose_name='Юзер ID', unique=True)
+    phone = models.CharField(
+        max_length=17,
+        blank=True,
+        verbose_name="Номер телефона"
+    )
     username = models.CharField(
         max_length=100,
         blank=True,
