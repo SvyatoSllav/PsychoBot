@@ -7,7 +7,6 @@ from telebot import types
 from telegram_bot.models import TelegramUser, Commands
 from telegram_bot.loader import BOT
 from telegram_bot.consts import messages_const
-from telegram_bot.keyboards import get_loc_and_phone_keyboard
 
 from psycho_survey.models import Messages, Review, Task
 
@@ -129,9 +128,9 @@ class MessageHandlers:
         )
 
     @classmethod
-    def _save_finall_msg(cls, user_id: int):
+    def _handle_finall_msg(cls, user_id: int):
         """
-        Сохраняет последнее сообщение при ожидании больше 1 сообщения в задаче
+        Обрабатывает, если последнее сообщение в цикле уже получено.
         """
         BOT.send_chat_action(chat_id=user_id, action="typing")
         time.sleep(5)
@@ -220,8 +219,8 @@ class MessageHandlers:
         """
         Обрабатывает команду /help
         """
-        start_cmd_text = Commands.objects.get(cmd="/help")
-        if start_cmd_text:
-            BOT.send_message(user_id, start_cmd_text.text)
+        start_cmd_text = Commands.objects.filter(cmd="/help")
+        if start_cmd_text.exists():
+            BOT.send_message(user_id, start_cmd_text[0].text)
             return
         BOT.send_message(user_id, "Хелповое сообщение")

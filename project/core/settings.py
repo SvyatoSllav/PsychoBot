@@ -15,8 +15,6 @@ from pathlib import Path
 import environ
 from celery.schedules import crontab
 
-from loguru import logger
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
@@ -28,10 +26,15 @@ env.read_env(env.str('ENV_PATH', BASE_DIR / ".env"))
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = int(os.environ.get("DEBUG", default=0))
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost",
+    "http://localhost/",
+    "http://127.0.0.1/",
+    "http://127.0.0.1"
+]
 
 # Application definition
 
