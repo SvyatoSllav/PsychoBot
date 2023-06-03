@@ -1,5 +1,5 @@
 from django.db import models
-from .mixins import UUIDMixin, TimeStampedMixin
+from .mixins.models_mixins import UUIDMixin, TimeStampedMixin
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 from .utils import PaymentStatus
@@ -7,6 +7,11 @@ from .utils import PaymentStatus
 
 class TelegramUser(UUIDMixin, TimeStampedMixin):
     user_id = models.BigIntegerField(verbose_name='Юзер ID', unique=True)
+    phone = models.CharField(
+        max_length=17,
+        blank=True,
+        verbose_name="Номер телефона"
+    )
     username = models.CharField(
         max_length=100,
         blank=True,
@@ -25,20 +30,13 @@ class TelegramUser(UUIDMixin, TimeStampedMixin):
         max_length=36,
         unique=True
     )
-    payment_status = models.CharField(
-        max_length=15,
-        choices=PaymentStatus.choices(),
-        default="NONE"
+    completed_course = models.BooleanField(
+        default=False,
+        verbose_name="Завершил курс"
     )
     task_sent = models.BooleanField(
         default=False,
         verbose_name="Сдал задачу"
-    )
-    timezone = models.DateTimeField(
-        auto_now_add=False,
-        verbose_name="timezone",
-        blank=True,
-        null=True
     )
     timezone = models.CharField(
         max_length=32,

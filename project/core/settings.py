@@ -12,11 +12,15 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 
 import os
 from pathlib import Path
+import environ
+from celery.schedules import crontab
+
 from loguru import logger
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
+BASE_DIR = Path(__file__).resolve().parent.parent
+env = environ.Env()
+env.read_env(env.str('ENV_PATH', BASE_DIR / ".env"))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
@@ -26,7 +30,6 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", default=0))
 
-# ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
 ALLOWED_HOSTS = ["*"]
 CSRF_TRUSTED_ORIGINS = ["http://localhost"]
 
@@ -40,7 +43,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "tasks",
     "telegram_bot",
     "psycho_survey",
     "tinkoff",
@@ -116,11 +118,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "Europe/Moscow"
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)
@@ -141,3 +143,11 @@ BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", "redis://redis:6379/0")
+
+CELERY_BEAT_SCHEDULE = {
+    "send_daily_msg": {
+        "task": "telegram_bot.tasks.send_daily_msg",
+        "schedule": crontab(minute="*/1"),
+    },
+}
+BOT_TOKEN = env("BOT_TOKEN")

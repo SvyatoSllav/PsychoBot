@@ -8,3 +8,5 @@ venv
 static/
 staticfiles/
 .env
+project/celerybeat-schedule
+logs
