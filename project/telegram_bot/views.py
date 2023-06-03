@@ -1,4 +1,8 @@
 import time
+import uuid
+
+import pytz
+from datetime import datetime
 from timezonefinder import TimezoneFinder
 from django.http import JsonResponse
 
@@ -16,9 +20,6 @@ from .utils import get_active_task
 from .mixins.mixins import ValidatorsMixin, MessageHandlers
 from .consts import messages_const
 from .consts import error_const
-
-from .utils import PaymentStatus
-
 
 from .Tinkoff import TinkoffSimplePayment
 
@@ -139,16 +140,22 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
 
     @classmethod
     def _process_payment_cmd(cls, user_id):
+        """
+        Выдает ссылку на платеж
+        """
         payment = TinkoffSimplePayment(terminal_id="1685039843752DEMO", password="jcw9vwrfgqx8fn0b")
         user = TelegramUser.objects.get(
             user_id=user_id,
         )
+
         try:
-            payment_result = payment.init(user.order_id, "100", sign_request=True, notificationURL="https://2100-5-16-122-1.ngrok-free.app/payhook/", data={"Phone": "+79999999999"})
+            order_id = str(uuid.uuid4())
+            # str(user.id)
+            payment_result = payment.init(order_id, "100", sign_request=True,
+                                          notificationURL="https://8082-193-242-207-246.ngrok-free.app/payhook/",
+                                          data={"Phone": "+79999999999"})
             payment_url = payment_result['PaymentURL']
             BOT.send_message(user_id, f"Оплатите курс по этой ссылке: {payment_url}")
-            user.payment_status = PaymentStatus.NEW
-            logger.info(user)
         except Exception as _exec:
             logger.error(f"{_exec}")
             return JsonResponse({"Error": "error during payment"})
@@ -219,6 +226,32 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         except Exception as _exec:
             logger.error(f"{_exec}")
             return JsonResponse({"Error": error_const.UNEXPECTED_ERROR_MSG})
+
+    @staticmethod
+    def confirmed_payment(userid: str):
+        """
+        Посылает пользователю сообщение, что оплата прошла успешно и меняет статус в БД
+        """
+        user = TelegramUser.objects.get(id=userid)
+        user.bought_course = True
+        user.save()
+
+        BOT.send_message(chat_id=user.user_id, text=f"Оплата прошла успешно")
+
+
+    @staticmethod
+    def rejected_payment(userid: str):
+        """
+        Посылает пользователю сообщение в случае непрошедшей оплаты и отправляет новую ссылку на повторную оплату
+        """
+        user = TelegramUser.objects.get(id=userid)
+        payment = TinkoffSimplePayment(terminal_id="1685039843752DEMO", password="jcw9vwrfgqx8fn0b")
+        payment_result = payment.init(userid, "100", sign_request=True,
+                                      notificationURL="https://8082-193-242-207-246.ngrok-free.app/payhook/",
+                                      data={"Phone": "+79999999999"})
+        payment_url = payment_result['PaymentURL']
+        BOT.send_message(chat_id=user.user_id, text=f"Ошибка при оплате. Повторите попытку\n{payment_url}")
+
 
     # TODO Вынести в миксины
     @staticmethod

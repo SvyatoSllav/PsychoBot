@@ -2,9 +2,6 @@ from django.db import models
 from .mixins.models_mixins import UUIDMixin, TimeStampedMixin
 from django.core.validators import MaxValueValidator, MinValueValidator
 
-from .utils import PaymentStatus
-
-
 class TelegramUser(UUIDMixin, TimeStampedMixin):
     user_id = models.BigIntegerField(verbose_name='Юзер ID', unique=True)
     phone = models.CharField(
