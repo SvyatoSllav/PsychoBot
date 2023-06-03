@@ -7,6 +7,8 @@ from loguru import logger
 
 from telebot import types
 
+from core import settings
+
 from psycho_survey.models import Review
 
 from .loader import BOT
