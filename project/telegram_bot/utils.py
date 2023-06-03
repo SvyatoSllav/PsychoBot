@@ -1,3 +1,4 @@
+from enum import Enum
 import time
 
 from typing import Optional
@@ -45,3 +46,22 @@ def send_to_user_active_task(user_id: int, day_number: int):
             chat_id=user_id,
             text=message or "Пока нет активных заданий",
         )
+
+
+class PaymentStatus(Enum):
+
+    NONE = "NONE"
+    NEW = "NEW"
+    CONFIRMED = "CONFIRMED"
+    REJECTED = "REJECTED"
+    CANCELED = "CANCELED"
+    REFUNDED = "REFUNDED"
+
+    @classmethod
+    def choices(cls):
+        # print(tuple((i.name, i.value) for i in cls))
+        return tuple((i.name, i.value) for i in cls)
+
+
+def check_payment_status():
+    pass

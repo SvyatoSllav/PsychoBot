@@ -6,7 +6,7 @@ from celery import shared_task
 
 from loguru import logger
 
-from psycho_survey.models import Task, Questionnaire
+from telegram_bot.consts import messages_const
 
 from .models import TelegramUser
 from .loader import BOT
@@ -31,7 +31,7 @@ def send_daily_msg():
             time_to_reset_task = check_time_in_timezone(
                 user.timezone,
                 hour=00,
-                minute=00
+                minute=21
             )
             if time_to_sent_msg:
                 send_to_user_active_task(
@@ -39,16 +39,25 @@ def send_daily_msg():
                     day_number=user.day_number
                 )
             if time_to_reset_task:
+                BOT.send_chat_action(
+                    chat_id=user.user_id,
+                    action="typing"
+                )
+                time.sleep(5)
                 if user.task_sent:
                     user.task_sent = False
                     user.day_number = user.day_number + 1
+                    if user.day_number == 10:
+                        BOT.send_message(
+                            chat_id=user.user_id,
+                            text=messages_const.SENT_REVIEW
+                        )
+                        user.completed_course = True
                     user.save()
                     return user
-                BOT.send_chat_action(chat_id=user.user_id, action="typing")
-                time.sleep(5)
                 BOT.send_message(
                     chat_id=user.user_id,
-                    text="К сожалению вы не прошли сегодняшнее задание - вы возвращаетесь к предыдущему дню",
+                    text=messages_const.RETURN_BACK_DAY,
                 )
                 user.day_number = user.day_number - 1
                 user.save()

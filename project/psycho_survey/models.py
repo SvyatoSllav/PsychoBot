@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 
-from telegram_bot.mixins import UUIDMixin, TimeStampedMixin
+from telegram_bot.mixins.models_mixins import UUIDMixin, TimeStampedMixin
 from telegram_bot.models import TelegramUser
 
 

@@ -1,10 +1,14 @@
 from django.db import models
-from .mixins import UUIDMixin, TimeStampedMixin
+from .mixins.models_mixins import UUIDMixin, TimeStampedMixin
 from django.core.validators import MaxValueValidator, MinValueValidator
-
 
 class TelegramUser(UUIDMixin, TimeStampedMixin):
     user_id = models.BigIntegerField(verbose_name='Юзер ID', unique=True)
+    phone = models.CharField(
+        max_length=17,
+        blank=True,
+        verbose_name="Номер телефона"
+    )
     username = models.CharField(
         max_length=100,
         blank=True,
@@ -18,6 +22,10 @@ class TelegramUser(UUIDMixin, TimeStampedMixin):
     bought_course = models.BooleanField(
         default=False,
         verbose_name="Купил курс"
+    )
+    order_id = models.CharField(
+        max_length=36,
+        unique=True
     )
     completed_course = models.BooleanField(
         default=False,
