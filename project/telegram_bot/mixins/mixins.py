@@ -1,6 +1,10 @@
 import time
 
-from telegram_bot.models import TelegramUser
+from timezonefinder import TimezoneFinder
+
+from telebot import types
+
+from telegram_bot.models import TelegramUser, Commands
 from telegram_bot.loader import BOT
 from telegram_bot.consts import messages_const
 from telegram_bot.keyboards import get_loc_and_phone_keyboard
@@ -174,3 +178,50 @@ class MessageHandlers:
             chat_id=user.user_id,
             text=messages_const.GRATITUDE_FOR_TASK_ANSWER
         )
+
+    @staticmethod
+    def _save_user_phone(user_id: int, phone: str):
+        """
+        Обновляет телефон пользователя.
+        """
+        user = TelegramUser.objects.get(user_id=user_id)
+        user.phone = phone
+        user.save()
+        BOT.send_chat_action(chat_id=user_id, action="typing")
+        time.sleep(5)
+        BOT.send_message(
+            chat_id=user_id,
+            text=messages_const.GRATITUDE_FOR_LOCATION_OR_PHONE,
+            reply_markup=types.ReplyKeyboardRemove()
+        )
+
+    @staticmethod
+    def _save_user_timezone(user_id: int, location: dict[str, int]):
+        """
+        Обновляет временную зону пользователя.
+        """
+        timezone = TimezoneFinder().timezone_at(
+            lng=location["longitude"],
+            lat=location["latitude"]
+        )
+        user = TelegramUser.objects.get(user_id=user_id)
+        user.timezone = timezone
+        user.save()
+        BOT.send_chat_action(chat_id=user_id, action="typing")
+        time.sleep(5)
+        BOT.send_message(
+            chat_id=user_id,
+            text=messages_const.GRATITUDE_FOR_LOCATION_OR_PHONE,
+            reply_markup=types.ReplyKeyboardRemove()
+        )
+
+    @classmethod
+    def _process_help_cmd(cls, user_id):
+        """
+        Обрабатывает команду /help
+        """
+        start_cmd_text = Commands.objects.get(cmd="/help")
+        if start_cmd_text:
+            BOT.send_message(user_id, start_cmd_text.text)
+            return
+        BOT.send_message(user_id, "Хелповое сообщение")
