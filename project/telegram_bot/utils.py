@@ -3,9 +3,15 @@ import time
 
 from typing import Optional
 
+from django.http import JsonResponse
+from loguru import logger
+
+from core import settings
 from psycho_survey.models import Questionnaire, Task
+from .Tinkoff import TinkoffSimplePayment
 
 from .loader import BOT
+from .models import TelegramUser
 
 
 def get_active_task(day_number: int) -> Optional[Task]:
@@ -61,6 +67,32 @@ class PaymentStatus(Enum):
     def choices(cls):
         # print(tuple((i.name, i.value) for i in cls))
         return tuple((i.name, i.value) for i in cls)
+
+
+def get_payment_url(user: TelegramUser) -> str:
+    """
+    Генерирует и возвращает ссылку на форму оплаты.
+    """
+    # TODO Вынести всё в енвы
+    try:
+        payment = TinkoffSimplePayment(terminal_id=settings.TERMINAL_KEY,
+                                       password=settings.PASSWORD)
+        order_id = str(user.id)
+        payment_result = payment.init(
+            order_id, settings.AMOUNT,
+            sign_request=True,
+            notificationURL=settings.NOTIFICATION_URL,
+            data={"Phone": user.phone}
+        )
+        payment_url = payment_result['PaymentURL']
+        return payment_url
+
+    except AttributeError as _exec:
+        logger.error(_exec)
+        return JsonResponse({"Error": "User not found"})
+    except Exception as _exec:
+        logger.error(f"{_exec}")
+        return JsonResponse({"Error": "error during payment"})
 
 
 def check_payment_status():
