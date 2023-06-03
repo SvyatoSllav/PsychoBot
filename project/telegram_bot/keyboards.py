@@ -13,6 +13,18 @@ def get_location_keyaboard():
     return keyboard.add(button_geo)
 
 
+def get_phone_keyaboard():
+    keyboard = types.ReplyKeyboardMarkup(
+        row_width=1,
+        resize_keyboard=True
+    )
+    button_phone = types.KeyboardButton(
+        text="Отправить номер телефона",
+        request_contact=True
+    )
+    return keyboard.add(button_phone)
+
+
 def get_loc_and_phone_keyboard(user):
     keyboard = types.ReplyKeyboardMarkup(
         row_width=1,

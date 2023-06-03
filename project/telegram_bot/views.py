@@ -37,21 +37,23 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             username = request.data.get(response_type, dict()).get("from", {}).get("username")
             location = request.data.get(response_type, dict()).get("location")
             contact = request.data.get("message", dict()).get("contact")
-            logger.info("CHECK")
-            TelegramUser.objects.get_or_create(
+            user = TelegramUser.objects.get_or_create(
                 user_id=user_id,
                 username=username
-            )
-            if location:
-                return self._save_user_timezone(
+            )[0]
+            if location and not user.timezone:
+                self._save_user_timezone(
                     user_id=user_id,
                     location=location
                 )
-            if contact:
-                return self._save_user_phone(
+                return JsonResponse({"status": "Success"}, status_code=200)
+            if contact and not user.phone:
+                self._save_user_phone(
                     user_id=user_id,
                     phone=contact.get("phone_number")
                 )
+                return JsonResponse({"status": "Success"}, status_code=200)
+            logger.info("CHECK")
             self._handle_message(user_id=user_id, message=message)
             return JsonResponse({"success": request.data})
         except Exception as _exec:
@@ -82,7 +84,6 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         """
         Обрабатывает команду /start.
         """
-        # TODO: Вынести клавиатуру по покупке
         user = TelegramWebhook._get_object_or_none(
             TelegramUser,
             user_id=user_id
@@ -120,10 +121,11 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         """
         Генерирует и возвращает ссылку на форму оплаты.
         """
-        # TODO Вынести всё в енвы
         try:
-            payment = TinkoffSimplePayment(terminal_id=settings.TERMINAL_KEY,
-                                           password=settings.PASSWORD)
+            payment = TinkoffSimplePayment(
+                terminal_id=settings.TERMINAL_KEY,
+                password=settings.PASSWORD
+            )
             user = TelegramWebhook._get_object_or_none(
                 TelegramUser,
                 user_id=user_id
@@ -151,7 +153,6 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         Обрабатывает неопределенное сообщение.
         """
         try:
-            # TODO Поменять ветвление на валидирующие функции из класса предка
             user = TelegramWebhook._get_object_or_none(
                 TelegramWebhook,
                 user_id=user_id
