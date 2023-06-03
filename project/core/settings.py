@@ -15,8 +15,6 @@ from pathlib import Path
 import environ
 from celery.schedules import crontab
 
-from loguru import logger
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
