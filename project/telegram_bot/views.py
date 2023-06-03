@@ -7,8 +7,6 @@ from loguru import logger
 
 from telebot import types
 
-from core import settings
-
 from psycho_survey.models import Review
 
 from .loader import BOT
@@ -80,7 +78,6 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         """
         Обрабатывает команду /start.
         """
-        # TODO: Вынести в миксин по обработке стартовой команды
         # TODO: Вынести клавиатуру по покупке
         user = TelegramWebhook._get_object_or_none(
             TelegramUser,
@@ -178,7 +175,10 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         """
         try:
             # TODO Поменять ветвление на валидирующие функции из класса предка
-            user = TelegramUser.objects.get(user_id=user_id)
+            user = TelegramWebhook._get_object_or_none(
+                TelegramWebhook,
+                user_id=user_id
+            )
             task = get_active_task(day_number=user.day_number)
             review_exists = TelegramWebhook._get_object_or_none(
                 Review,
@@ -222,9 +222,8 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
                     message=message,
                     task_msg_count=task_msg_count
                 )
-            # TODO Фикс нейминга, мы не сохраняем последнее сообщение, а отрабатываем сценарий если сообщения закончились
             elif is_finall_msg_of_task:
-                TelegramWebhook._save_finall_msg(user_id=user_id)
+                TelegramWebhook._handle_finall_msg(user_id=user_id)
             user.task_sent = True
             user.save()
             if user.day_number == 10 and not review_exists:
