@@ -13,7 +13,7 @@ from psycho_survey.models import Review
 
 from .loader import BOT
 from .models import Commands, TelegramUser
-from .keyboards import get_loc_and_phone_keyboard
+from .keyboards import get_loc_and_phone_keyboard, get_buy_keyboard
 from .utils import get_active_task
 from .mixins.mixins import ValidatorsMixin, MessageHandlers
 from .consts import messages_const
@@ -86,15 +86,8 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             TelegramUser,
             user_id=user_id
         )
-        inlinekeyboard = types.InlineKeyboardMarkup(
-            row_width=1
-        )
-        inlinekeyboard.add(
-            types.InlineKeyboardButton(
-                "Оплатить", callback_data="buy"
-            )
-        )
         loc_and_phone_keyboard = get_loc_and_phone_keyboard(user=user)
+        buy_keyboard = get_buy_keyboard()
         contact_saved = user.timezone and user.phone
         start_cmd_text = TelegramWebhook._get_object_or_none(
             Commands,
@@ -107,7 +100,8 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             return BOT.send_message(
                 user_id,
                 text=messages_const.COURSE_IS_NOT_BOUGHT,
-                reply_markup=inlinekeyboard
+                reply_markup=buy_keyboard
+
             )
         if not contact_saved:
             return TelegramWebhook._ask_for_location(
@@ -126,20 +120,22 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         Генерирует и возвращает ссылку на форму оплаты.
         """
         try:
-            payment = TinkoffSimplePayment(terminal_id="1685039843752DEMO", password="jcw9vwrfgqx8fn0b")
+            payment = TinkoffSimplePayment(terminal_id=settings.TERMINAL_KEY,
+                                           password=settings.PASSWORD)
             user = TelegramWebhook._get_object_or_none(
                 TelegramUser,
                 user_id=user_id
             )
             order_id = str(user.id)
             payment_result = payment.init(
-                order_id, "5000",
+                order_id, settings.AMOUNT,
                 sign_request=True,
-                notificationURL="https://8082-193-242-207-246.ngrok-free.app/payhook/",
+                notificationURL=settings.NOTIFICATION_URL,
                 data={"Phone": user.phone}
             )
             payment_url = payment_result['PaymentURL']
-            BOT.send_message(user_id, f"Оплатите курс по этой ссылке: {payment_url}")
+            BOT.send_message(user_id, f"Оплатите курс по этой ссылке:"
+                                      f" {payment_url}")
         except AttributeError as _exec:
             logger.error(_exec)
             return JsonResponse({"Error": "User not found"})
