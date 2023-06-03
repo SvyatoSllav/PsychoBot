@@ -33,13 +33,13 @@ def get_loc_and_phone_keyboard(user):
     return keyboard
 
 
-def get_buy_keyboard():
+def get_buy_keyboard(url: str):
     inlinekeyboard = types.InlineKeyboardMarkup(
         row_width=1
     )
     inlinekeyboard.add(
         types.InlineKeyboardButton(
-            "Оплатить", callback_data="buy"
+            "Оплатить", callback_data="buy", url=url
         )
     )
 

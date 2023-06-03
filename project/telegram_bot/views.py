@@ -7,19 +7,15 @@ from loguru import logger
 
 from telebot import types
 
-from core import settings
-
 from psycho_survey.models import Review
 
 from .loader import BOT
 from .models import Commands, TelegramUser
 from .keyboards import get_loc_and_phone_keyboard, get_buy_keyboard
-from .utils import get_active_task
+from .utils import get_active_task, get_payment_url
 from .mixins.mixins import ValidatorsMixin, MessageHandlers
 from .consts import messages_const
 from .consts import error_const
-
-from .Tinkoff import TinkoffSimplePayment
 
 
 class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
@@ -88,7 +84,7 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             user_id=user_id
         )
         loc_and_phone_keyboard = get_loc_and_phone_keyboard(user=user)
-        buy_keyboard = get_buy_keyboard()
+        buy_keyboard = get_buy_keyboard(get_payment_url(user))
         contact_saved = user.timezone and user.phone
         start_cmd_text = TelegramWebhook._get_object_or_none(
             Commands,
@@ -115,35 +111,6 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             reply_markup=types.ReplyKeyboardRemove(),
         )
 
-    @classmethod
-    def _process_payment_cmd(cls, user_id: int) -> str:
-        """
-        Генерирует и возвращает ссылку на форму оплаты.
-        """
-        # TODO Вынести всё в енвы
-        try:
-            payment = TinkoffSimplePayment(terminal_id=settings.TERMINAL_KEY,
-                                           password=settings.PASSWORD)
-            user = TelegramWebhook._get_object_or_none(
-                TelegramUser,
-                user_id=user_id
-            )
-            order_id = str(user.id)
-            payment_result = payment.init(
-                order_id, settings.AMOUNT,
-                sign_request=True,
-                notificationURL=settings.NOTIFICATION_URL,
-                data={"Phone": user.phone}
-            )
-            payment_url = payment_result['PaymentURL']
-            BOT.send_message(user_id, f"Оплатите курс по этой ссылке:"
-                                      f" {payment_url}")
-        except AttributeError as _exec:
-            logger.error(_exec)
-            return JsonResponse({"Error": "User not found"})
-        except Exception as _exec:
-            logger.error(f"{_exec}")
-            return JsonResponse({"Error": "error during payment"})
 
     @classmethod
     def _proccess_undefined_message(cls, user_id: int, message: str):

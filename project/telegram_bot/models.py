@@ -23,10 +23,6 @@ class TelegramUser(UUIDMixin, TimeStampedMixin):
         default=False,
         verbose_name="Купил курс"
     )
-    order_id = models.CharField(
-        max_length=36,
-        unique=True
-    )
     completed_course = models.BooleanField(
         default=False,
         verbose_name="Завершил курс"
