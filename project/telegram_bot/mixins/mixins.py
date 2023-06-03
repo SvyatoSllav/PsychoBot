@@ -49,7 +49,7 @@ class ValidatorsMixin(ReviewValidators, TaskValidators, MessagesValidators):
     @classmethod
     def _get_object_or_none(cls, model, **kwargs):
         """
-        Получаем объект любой модели с определенными полями.
+        Получает объект переданной модели по переданным ключам.
         """
         obj = model.objects.filter(**kwargs)
         if obj.exists():
@@ -71,17 +71,16 @@ class MessageHandlers:
         )
 
     @classmethod
-    def _ask_for_location(cls, user_id: int):
+    def _ask_for_location(cls, user_id: int, keyboard):
         """
         Запрашивает локацию и телефон у пользователя.
         """
-        user = TelegramUser.objects.get(user_id=user_id)
         BOT.send_chat_action(chat_id=user_id, action="typing")
         time.sleep(5)
         BOT.send_message(
             chat_id=user_id,
             text=messages_const.SEND_YOUR_LOCATION_OR_PHONE,
-            reply_markup=get_loc_and_phone_keyboard(user=user)
+            reply_markup=keyboard
         )
 
     @classmethod
