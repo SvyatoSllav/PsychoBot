@@ -26,15 +26,16 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             logger.info(request.data)
             if request.data.get("callback_query"):
                 response_type = "callback_query"
-                message = request.data.get(response_type).get("data")
+                message = request.data.get(response_type, dict()).get("data")
             else:
                 response_type = "message"
-                message = request.data.get(response_type).get("text")
+                message = request.data.get(response_type, dict()).get("text")
 
-            user_id = request.data.get(response_type).get("from").get("id")
-            username = request.data.get(response_type).get("from").get("username")
-            location = request.data.get(response_type).get("location")
-            contact = request.data.get("message").get("contact")
+            user_id = request.data.get(response_type,dict()}).get("from", {}).get("id")
+            username = request.data.get(response_type, dict()).get("from", {}).get("username")
+            location = request.data.get(response_type, dict()).get("location")
+            contact = request.data.get("message", dict()).get("contact")
+            logger.info("CHECK")
             TelegramUser.objects.get_or_create(
                 user_id=user_id,
                 username=username
@@ -61,6 +62,7 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         Обрабатывает текст сообщения и исполняет соответствующее поведение
         """
         BOT.send_chat_action(chat_id=user_id, action="typing")
+        logger.info(message)
         time.sleep(5)
         if message == "/start":
             TelegramWebhook._process_start_cmd(user_id=user_id)
@@ -91,8 +93,8 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             cmd="/start"
         )
         message_text = messages_const.COURSE_STARTED
-        if start_cmd_text.exists():
-            message_text = start_cmd_text[0].text
+        if start_cmd_text:
+            message_text = start_cmd_text.text
         if not user.bought_course:
             return BOT.send_message(
                 user_id,
