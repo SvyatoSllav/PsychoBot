@@ -33,7 +33,7 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
                 response_type = "message"
                 message = request.data.get(response_type, dict()).get("text")
 
-            user_id = request.data.get(response_type,dict()}).get("from", {}).get("id")
+            user_id = request.data.get(response_type, dict()).get("from", {}).get("id")
             username = request.data.get(response_type, dict()).get("from", {}).get("username")
             location = request.data.get(response_type, dict()).get("location")
             contact = request.data.get("message", dict()).get("contact")
