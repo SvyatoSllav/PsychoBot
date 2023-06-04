@@ -4,11 +4,13 @@ from timezonefinder import TimezoneFinder
 
 from telebot import types
 
+from psycho_survey.models import Messages, Review, Task
+
 from telegram_bot.models import TelegramUser, Commands
 from telegram_bot.loader import BOT
 from telegram_bot.consts import messages_const
+from telegram_bot.keyboards import get_location_keyaboard, get_phone_keyaboard
 
-from psycho_survey.models import Messages, Review, Task
 
 
 class ReviewValidators:
@@ -188,10 +190,13 @@ class MessageHandlers:
         user.save()
         BOT.send_chat_action(chat_id=user_id, action="typing")
         time.sleep(5)
+        keyboard = types.ReplyKeyboardRemove() 
+        if not user.timezone:
+            keyboard = get_location_keyaboard()
         BOT.send_message(
             chat_id=user_id,
-            text=messages_const.GRATITUDE_FOR_LOCATION_OR_PHONE,
-            reply_markup=types.ReplyKeyboardRemove()
+            text=messages_const.GRATITUDE_FOR_PHONE,
+            reply_markup=keyboard
         )
 
     @staticmethod
@@ -208,10 +213,13 @@ class MessageHandlers:
         user.save()
         BOT.send_chat_action(chat_id=user_id, action="typing")
         time.sleep(5)
+        keyboard = types.ReplyKeyboardRemove() 
+        if not user.phone:
+            keyboard = get_phone_keyaboard()
         BOT.send_message(
             chat_id=user_id,
-            text=messages_const.GRATITUDE_FOR_LOCATION_OR_PHONE,
-            reply_markup=types.ReplyKeyboardRemove()
+            text=messages_const.GRATITUDE_FOR_LOCATION,
+            reply_markup=keyboard
         )
 
     @classmethod

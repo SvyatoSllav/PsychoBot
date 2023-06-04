@@ -13,6 +13,18 @@ def get_location_keyaboard():
     return keyboard.add(button_geo)
 
 
+def get_phone_keyaboard():
+    keyboard = types.ReplyKeyboardMarkup(
+        row_width=1,
+        resize_keyboard=True
+    )
+    button_phone = types.KeyboardButton(
+        text="Отправить номер телефона",
+        request_contact=True
+    )
+    return keyboard.add(button_phone)
+
+
 def get_loc_and_phone_keyboard(user):
     keyboard = types.ReplyKeyboardMarkup(
         row_width=1,
@@ -31,3 +43,16 @@ def get_loc_and_phone_keyboard(user):
     if not user.phone:
         keyboard.add(button_phone)
     return keyboard
+
+
+def get_buy_keyboard(url: str):
+    inlinekeyboard = types.InlineKeyboardMarkup(
+        row_width=1
+    )
+    inlinekeyboard.add(
+        types.InlineKeyboardButton(
+            "Оплатить", callback_data="buy", url=url
+        )
+    )
+
+    return inlinekeyboard
