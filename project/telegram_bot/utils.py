@@ -34,14 +34,17 @@ def get_active_task(day_number: int) -> Optional[Task]:
         }
         return day_to_task[day_number]
     elif Task.objects.filter(day_number=day_number).exists():
-        return Task.objects.get(day_number=day_number).text_of_task
+        return Task.objects.get(day_number=day_number)
 
 
 def send_to_user_active_task(user_id: int, day_number: int):
     """
     Получает у юзера активную задачу и отправляет её.
     """
-    full_text = get_active_task(day_number=day_number)
+    user = TelegramUser.objects.get(user_id=user_id)
+    user.task_received = True
+    user.save()
+    full_text = get_active_task(day_number=day_number).text_of_task
     text_chunk_size = 1000
     # Разбивает сообщение на равные части по 1000 символов
     messages = [full_text[i:i+text_chunk_size] for i in range(0, len(full_text), text_chunk_size)]
@@ -54,29 +57,15 @@ def send_to_user_active_task(user_id: int, day_number: int):
         )
 
 
-class PaymentStatus(Enum):
-
-    NONE = "NONE"
-    NEW = "NEW"
-    CONFIRMED = "CONFIRMED"
-    REJECTED = "REJECTED"
-    CANCELED = "CANCELED"
-    REFUNDED = "REFUNDED"
-
-    @classmethod
-    def choices(cls):
-        # print(tuple((i.name, i.value) for i in cls))
-        return tuple((i.name, i.value) for i in cls)
-
-
 def get_payment_url(user: TelegramUser) -> str:
     """
     Генерирует и возвращает ссылку на форму оплаты.
     """
-    # TODO Вынести всё в енвы
     try:
-        payment = TinkoffSimplePayment(terminal_id=settings.TERMINAL_KEY,
-                                       password=settings.PASSWORD)
+        payment = TinkoffSimplePayment(
+            terminal_id=settings.TERMINAL_KEY,
+            password=settings.PASSWORD
+        )
         order_id = str(user.id)
         payment_result = payment.init(
             order_id, settings.AMOUNT,

@@ -38,7 +38,7 @@ class MessagesAdmin(admin.ModelAdmin):
         "user",
         "task",
     ]
-    list_filter = ["user", "task"]
+    list_filter = ["user__username", "task__name"]
 
 
 @admin.register(Review)

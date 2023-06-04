@@ -40,6 +40,10 @@ class Task(UUIDMixin, TimeStampedMixin):
         if self.is_answer_counted_task and self.amount_of_message:
             if self.amount_of_message < 1:
                 raise ValidationError("Выберите количество сообщений")
+        elif not self.is_answer_counted_task and self.amount_of_message > 1:
+            raise ValidationError(
+                "Отметье как особую задачу, чтобы увеличить кол-во сообщений"
+                )
 
     def __str__(self):
         return f"{self.name} День: {self.day_number}"

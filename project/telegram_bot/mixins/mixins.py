@@ -12,11 +12,6 @@ from telegram_bot.consts import messages_const
 from telegram_bot.keyboards import get_location_keyaboard, get_phone_keyaboard
 
 
-
-class ReviewValidators:
-    pass
-
-
 class TaskValidators:
     @classmethod
     def _is_waiting_for_msgs(cls, task: Task, task_msg_count: int):
@@ -24,7 +19,7 @@ class TaskValidators:
         Проверяет, ожидаем ли еще сообщений по задачу.
         """
         task_special = task.is_answer_counted_task
-        not_enough_msg = task.amount_of_message != task_msg_count
+        not_enough_msg = (task.amount_of_message - 1) != task_msg_count
         return not_enough_msg and task_special
 
     @classmethod
@@ -50,7 +45,7 @@ class MessagesValidators:
         return 0
 
 
-class ValidatorsMixin(ReviewValidators, TaskValidators, MessagesValidators):
+class ValidatorsMixin(TaskValidators, MessagesValidators):
     @classmethod
     def _get_object_or_none(cls, model, **kwargs):
         """
@@ -232,3 +227,12 @@ class MessageHandlers:
             BOT.send_message(user_id, start_cmd_text[0].text)
             return
         BOT.send_message(user_id, "Хелповое сообщение")
+
+    @classmethod
+    def handler_task_not_received(cls, user_id: int):
+        BOT.send_chat_action(chat_id=user_id, action="typing")
+        time.sleep(5)
+        BOT.send_message(
+            chat_id=user_id,
+            text=messages_const.TASK_NOT_SENT,
+        )

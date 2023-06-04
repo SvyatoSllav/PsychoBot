@@ -19,6 +19,7 @@ class TelegramUserAdmin(admin.ModelAdmin):
     )
     list_filter = ["user_id", "username", ]
     search_fields = ["user_id", "username", ]
+    exclude = ["task_received", ]
 
     def users_amount(self, obj):
         return TelegramUser.objects.all().count()
