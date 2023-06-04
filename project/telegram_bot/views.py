@@ -42,14 +42,13 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
                     user_id=user_id,
                     location=location
                 )
-                return JsonResponse({"status": "Success"}, status_code=200)
+                return JsonResponse({"status": "Success"})
             if contact and not user.phone:
                 self._save_user_phone(
                     user_id=user_id,
                     phone=contact.get("phone_number")
                 )
-                return JsonResponse({"status": "Success"}, status_code=200)
-            logger.info("CHECK")
+                return JsonResponse({"status": "Success"})
             self._handle_message(user_id=user_id, message=message)
             return JsonResponse({"success": request.data})
         except Exception as _exec:
@@ -68,8 +67,6 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             TelegramWebhook._process_start_cmd(user_id=user_id)
         elif message == "/help":
             TelegramWebhook._process_help_cmd(user_id=user_id)
-        elif message == "buy":
-            TelegramWebhook._process_payment_cmd(user_id=user_id)
         elif message:
             TelegramWebhook._proccess_undefined_message(
                 user_id=user_id, message=message
@@ -85,6 +82,12 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             user_id=user_id
         )
         loc_and_phone_keyboard = get_loc_and_phone_keyboard(user=user)
+        if not user.phone:
+            return BOT.send_message(
+                user_id,
+                text=messages_const.ASK_FOR_PHONE,
+                reply_markup=loc_and_phone_keyboard
+            )
         buy_keyboard = get_buy_keyboard(get_payment_url(user))
         contact_saved = user.timezone and user.phone
         start_cmd_text = TelegramWebhook._get_object_or_none(
@@ -99,7 +102,6 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
                 user_id,
                 text=messages_const.COURSE_IS_NOT_BOUGHT,
                 reply_markup=buy_keyboard
-
             )
         if not contact_saved:
             return TelegramWebhook._ask_for_location(
@@ -119,7 +121,7 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
         """
         try:
             user = TelegramWebhook._get_object_or_none(
-                TelegramWebhook,
+                TelegramUser,
                 user_id=user_id
             )
             task = get_active_task(day_number=user.day_number)
@@ -133,9 +135,13 @@ class TelegramWebhook(ValidatorsMixin, MessageHandlers, APIView):
             # Если курс не куплен, то отрабатываем как старт
             if not user.bought_course:
                 return TelegramWebhook._process_start_cmd(user_id=user_id)
-            # Сценарий если отзыв существует
+            # Сценарий если отзыв существует и от юзера ждать нечего
             if review_exists:
                 return TelegramWebhook._handle_review_exists_scenario(
+                    user_id=user_id
+                )
+            if not user.task_received:
+                return TelegramWebhook.handler_task_not_received(
                     user_id=user_id
                 )
             # Если нет таймзоны, запрашиваем местоположение

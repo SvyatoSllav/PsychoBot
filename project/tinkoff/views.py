@@ -38,6 +38,8 @@ class TinkoffWebhook(APIView):
         """
         try:
             user = TelegramWebhook._get_object_or_none(TelegramUser, id=pk)
+            if user.bought_course:
+                return 
             user.bought_course = True
             user.save()
             BOT.send_message(
@@ -56,11 +58,17 @@ class TinkoffWebhook(APIView):
         """
         try:
             user = TelegramWebhook._get_object_or_none(TelegramUser, id=pk)
-            payment = TinkoffSimplePayment(terminal_id=settings.TERMINAL_KEY,
-                                           password=settings.PASSWORD)
-            payment_result = payment.init(pk, settings.AMOUNT, sign_request=True,
-                                          notificationURL=settings.NOTIFICATION_URL,
-                                          data={"Phone": user.phone})
+            payment = TinkoffSimplePayment(
+                terminal_id=settings.TERMINAL_KEY,
+                password=settings.PASSWORD
+            )
+            payment_result = payment.init(
+                pk,
+                settings.AMOUNT,
+                sign_request=True,
+                notificationURL=settings.NOTIFICATION_URL,
+                data={"Phone": user.phone}
+            )
             payment_url = payment_result['PaymentURL']
             buy_keyboard = get_buy_keyboard(payment_url)
 

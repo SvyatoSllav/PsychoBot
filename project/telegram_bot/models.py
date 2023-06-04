@@ -37,6 +37,10 @@ class TelegramUser(UUIDMixin, TimeStampedMixin):
         max_length=32,
         blank=True,
     )
+    task_received = models.BooleanField(
+        default=False,
+        verbose_name="Получил задачу"
+    )
 
     def __str__(self):
         return f"""

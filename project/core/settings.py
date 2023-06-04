@@ -33,7 +33,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "http://localhost/",
     "http://127.0.0.1/",
-    "http://127.0.0.1"
+    "http://127.0.0.1",
+    "https://057f-188-123-231-175.ngrok-free.app",
+    "https://057f-188-123-231-175.ngrok-free.app/"
 ]
 
 # Application definition
